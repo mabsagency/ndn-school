@@ -2,7 +2,6 @@ import os
 import secrets
 from pathlib import Path
 
-from dotenv import load_dotenv
 from flask import Flask, request, send_from_directory
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -34,7 +33,10 @@ def normalize_database_url(database_url, instance_path):
 
 
 def create_app(test_config=None):
-    load_dotenv()
+    if not os.environ.get("VERCEL"):
+        from dotenv import load_dotenv
+
+        load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
     database_url = os.environ.get("DATABASE_URL")
     prototype_mode = bool(os.environ.get("VERCEL") and not database_url)

@@ -1,6 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 import re
+import sys
 
 import pytest
 
@@ -168,6 +169,7 @@ def test_vercel_without_database_uses_temporary_prototype_database(monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setitem(sys.modules, "dotenv", None)
     app = create_app({"TESTING": True})
     assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:////tmp/ndn-school-prototype.db"
     assert app.config["PROTOTYPE_MODE"] is True
