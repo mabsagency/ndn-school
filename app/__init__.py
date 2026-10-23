@@ -33,10 +33,6 @@ def normalize_database_url(database_url, instance_path):
 
 
 def create_app(test_config=None):
-    if not os.environ.get("VERCEL"):
-        from dotenv import load_dotenv
-
-        load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
     database_url = os.environ.get("DATABASE_URL")
     prototype_mode = bool(os.environ.get("VERCEL") and not database_url)

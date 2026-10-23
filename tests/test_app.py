@@ -185,7 +185,8 @@ def test_vercel_with_database_still_requires_a_secret(monkeypatch):
         create_app({"TESTING": True})
 
 
-def test_vercel_prototype_entrypoint_initializes_demo_data(tmp_path):
+def test_vercel_prototype_entrypoint_initializes_demo_data(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "dotenv", None)
     from index import initialize_prototype_database
 
     prototype_app = create_app({
