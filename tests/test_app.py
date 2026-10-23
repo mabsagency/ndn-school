@@ -164,16 +164,39 @@ def test_database_url_normalization_supports_supabase_and_relative_sqlite(tmp_pa
     assert sqlite_url.database == str(tmp_path / "ndn_school.db")
 
 
-def test_vercel_requires_persistent_database_and_secret(monkeypatch):
+def test_vercel_without_database_uses_temporary_prototype_database(monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="DATABASE_URL"):
-        create_app({"TESTING": True})
+    app = create_app({"TESTING": True})
+    assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:////tmp/ndn-school-prototype.db"
+    assert app.config["PROTOTYPE_MODE"] is True
+    assert app.config["PERSISTENT_UPLOADS"] is False
+    assert app.config["SECRET_KEY"] == "ndn-school-prototype-only-do-not-use-with-real-data"
 
+
+def test_vercel_with_database_still_requires_a_secret(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
         create_app({"TESTING": True})
+
+
+def test_vercel_prototype_entrypoint_initializes_demo_data(tmp_path):
+    from index import initialize_prototype_database
+
+    prototype_app = create_app({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'prototype.db'}",
+        "SECRET_KEY": "test-secret",
+    })
+    prototype_app.config["PROTOTYPE_MODE"] = True
+    initialize_prototype_database(prototype_app)
+
+    with prototype_app.app_context():
+        assert User.query.filter_by(username="admin23").one()
+        assert Student.query.count() == 24
 
 
 def test_offline_snapshot_requires_login_and_never_discloses_sensitive_fields(client, login_user):

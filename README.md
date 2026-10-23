@@ -43,7 +43,13 @@ Ouvrir ensuite <http://127.0.0.1:5000>. La base SQLite et les sauvegardes se tro
 
 La PWA est installable depuis un navigateur compatible sur `localhost` ou une origine HTTPS. Sur iPhone/iPad, ouvrez le site dans Safari puis choisissez **Partager → Sur l’écran d’accueil**. Pour préparer l’accès hors ligne, connectez-vous une première fois depuis l’appareil et le navigateur à utiliser. Ensuite, si le serveur devient inaccessible, l’application passe automatiquement sur l’écran hors ligne ; saisissez l’identifiant et le mot de passe utilisés lors de la synchronisation pour consulter la copie chiffrée. Au retour de la connexion, l’application normale s’ouvre automatiquement. Il s’agit d’un instantané de la dernière connexion, pas d’une synchronisation en temps réel ; les saisies et changements hors ligne ne sont pas conservés.
 
-## Déploiement Vercel et Supabase
+## Déploiement prototype sur Vercel
+
+Le dépôt peut être déployé sur Vercel sans Supabase pour une démonstration client. Si `DATABASE_URL` n’est pas définie, l’application initialise automatiquement les données fictives dans SQLite sous `/tmp` et active le compte de démonstration. Aucun secret Vercel n’est requis pour ce mode. La base temporaire peut disparaître ou être différente entre les instances serverless : les modifications du client ne sont donc pas conservées. Une clé de session réservée à ce prototype est utilisée ; ne stockez aucune donnée réelle et ne réutilisez pas cette clé en production. Une bannière dans l’application rappelle cette limite.
+
+Importez `mabsagency/ndn-school` dans Vercel, gardez `main` comme branche de production et déployez. Les prochains commits envoyés sur `main` déclencheront automatiquement un nouveau déploiement.
+
+## Déploiement persistant avec Vercel et Supabase
 
 Le dépôt contient un point d’entrée Flask pour Vercel (`index.py`) et une étape de build qui copie les ressources PWA vers `public/static/`, servies par le CDN Vercel. Vercel exécute Flask dans une fonction sans serveur persistant : le système de fichiers local n’est pas durable. Les téléversements de logo sont donc désactivés sur Vercel jusqu’à l’ajout d’un stockage persistant tel que Supabase Storage. La commande locale de sauvegarde SQLite ne s’applique pas à Supabase.
 

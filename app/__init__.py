@@ -37,13 +37,15 @@ def create_app(test_config=None):
     load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
     database_url = os.environ.get("DATABASE_URL")
+    prototype_mode = bool(os.environ.get("VERCEL") and not database_url)
     if not database_url:
-        if os.environ.get("VERCEL"):
-            raise RuntimeError("DATABASE_URL doit être configurée dans les variables d’environnement Vercel.")
-        database_url = f"sqlite:///{Path(app.instance_path) / 'ndn_school.db'}"
+        if prototype_mode:
+            database_url = "sqlite:////tmp/ndn-school-prototype.db"
+        else:
+            database_url = f"sqlite:///{Path(app.instance_path) / 'ndn_school.db'}"
     database_url = normalize_database_url(database_url, app.instance_path)
     secret_key = os.environ.get("SECRET_KEY")
-    if not secret_key and os.environ.get("VERCEL"):
+    if not secret_key and os.environ.get("VERCEL") and not prototype_mode:
         raise RuntimeError("SECRET_KEY doit être configurée dans les variables d’environnement Vercel.")
     is_vercel = bool(os.environ.get("VERCEL"))
     engine_options = {"pool_pre_ping": True}
@@ -52,10 +54,14 @@ def create_app(test_config=None):
         if is_vercel:
             engine_options["poolclass"] = NullPool
     app.config.update(
-        SECRET_KEY=secret_key or secrets.token_hex(32),
+        SECRET_KEY=secret_key or (
+            "ndn-school-prototype-only-do-not-use-with-real-data"
+            if prototype_mode else secrets.token_hex(32)
+        ),
         SQLALCHEMY_DATABASE_URI=database_url.render_as_string(hide_password=False),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SQLALCHEMY_ENGINE_OPTIONS=engine_options,
+        PROTOTYPE_MODE=prototype_mode,
         MAX_CONTENT_LENGTH=2 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
