@@ -81,6 +81,21 @@ def test_management_pages_render_for_authorized_user(client, login_user):
             assert "classCreation" in response.get_data(as_text=True)
 
 
+def test_mobile_navigation_and_touch_controls_are_available(client, login_user):
+    login_user(client, "admin23", "admin000")
+    page = client.get("/")
+    assert b'id="mobileNavBackdrop"' in page.data
+    assert b'aria-controls="sidebar"' in page.data
+    assert b'aria-expanded="false"' in page.data
+
+    stylesheet = client.get("/static/css/app.css")
+    assert stylesheet.status_code == 200
+    css = stylesheet.get_data(as_text=True)
+    assert "width: 44px; height: 44px" in css
+    assert "font-size: 16px" in css
+    assert "overscroll-behavior-x: contain" in css
+
+
 def test_pwa_resources_are_available_without_authentication(client):
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200

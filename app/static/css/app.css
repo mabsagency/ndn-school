@@ -424,16 +424,23 @@ td>b { color: #3e596d; font-size: 10px; }
   .dashboard-grid { grid-template-columns: minmax(0, 1.25fr) minmax(250px, .9fr); }
 }
 @media (max-width: 800px) {
-  .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: 8px 0 28px #173e5828; }
+  .sidebar { z-index: 6; width: min(300px, 86vw); height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior: contain; transform: translateX(-105%); transition: transform .2s ease; box-shadow: 8px 0 28px #173e5828; }
   .sidebar.open { transform: translateX(0); }
+  .mobile-nav-backdrop { position: fixed; z-index: 5; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: #102c4070; }
+  .mobile-nav-backdrop[hidden] { display: none; }
+  body.mobile-nav-open { overflow: hidden; }
   .main-area { margin-left: 0; }
-  .menu-button { display: block; }
+  .menu-button { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border-radius: 9px; }
+  .menu-button:hover, .menu-button:focus-visible { background: #eaf7fc; }
   .topbar { height: 58px; justify-content: flex-start; gap: 13px; padding: 0 16px; }
   .topbar-right { margin-left: auto; }
   .offline-indicator { display: none; }
   .year-pill { display: none; }
   .page-content { padding: 25px 17px 30px; }
   .app-footer { gap: 10px; padding: 12px 17px; font-size: 8px; }
+  .table-wrap { overscroll-behavior-x: contain; scrollbar-color: #9acfe3 #f2f7f9; scrollbar-width: thin; }
+  .button { min-height: 44px; }
+  .logout-button { width: 44px; height: 44px; flex: 0 0 44px; }
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid { grid-template-columns: 1fr; }
   .results-panel, .pending-panel { min-height: auto; }
@@ -452,6 +459,17 @@ td>b { color: #3e596d; font-size: 10px; }
   .breadcrumb>span { display: none; }
   .topbar-right .avatar { width: 30px; height: 30px; flex-basis: 30px; }
   .page-content { padding: 21px 12px 26px; }
+  .topbar { padding-right: 10px; padding-left: 8px; }
+  .topbar-right { gap: 7px; }
+  .profile-link { display: grid; min-width: 44px; min-height: 44px; place-items: center; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  select, textarea { min-height: 44px; padding-top: 8px; padding-bottom: 8px; font-size: 16px; }
+  .password-field { height: 48px; }
+  .password-field button { width: 44px; height: 44px; flex-basis: 44px; }
+  .score-input { min-height: 44px; font-size: 16px; }
+  .nav-link { min-height: 48px; }
+  .subject-pick-row { min-height: 48px; }
+  .check-label { min-height: 44px; }
   .welcome-row, .page-heading { align-items: flex-start; margin-bottom: 18px; }
   .welcome-row h1, .page-heading h1 { font-size: 22px; }
   .welcome-row p, .page-heading p { max-width: 270px; font-size: 10px; line-height: 1.5; }

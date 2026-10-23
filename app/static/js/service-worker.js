@@ -1,4 +1,4 @@
-const CACHE_NAME = "ndn-static-v5";
+const CACHE_NAME = "ndn-static-v6";
 const STATIC_ASSETS = [
   "/static/offline.html",
   "/static/css/app.css",
