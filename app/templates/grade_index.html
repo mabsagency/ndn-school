@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Saisie des notes{% endblock %}{% block breadcrumb %}Saisie des notes{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow blue-eyebrow">ÉVALUATIONS & RÉSULTATS</div><h1>Saisie des notes</h1><p class="muted">Retrouvez vos fiches, enregistrez les notes et suivez leur validation.</p></div></div>
+<section class="panel"><div class="panel-heading"><div><div class="eyebrow">ANNÉE {{ active_year.label }}</div><h2>Fiches d’évaluation</h2></div><span class="heading-count">{{ evaluations|length }} fiche{{ 's' if evaluations|length != 1 }}</span></div>
+<div class="table-wrap"><table><thead><tr><th>ÉVALUATION</th><th>CLASSE</th><th>MATIÈRE</th><th>PÉRIODE</th><th>BARÈME</th><th>ÉTAT</th><th></th></tr></thead><tbody>{% for evaluation in evaluations %}<tr><td><b>{{ evaluation.title }}</b><small class="table-sub">{{ evaluation.held_on.strftime('%d/%m/%Y') }} · {{ evaluation.assessment_type }}</small></td><td><span class="class-pill">{{ evaluation.school_class.name }}</span></td><td>{{ evaluation.subject.name }}</td><td>{{ evaluation.period }}</td><td>/ {{ '%g'|format(evaluation.max_score) }}</td><td><span class="badge badge-{{ evaluation.status|lower|replace('é', 'e') }}">{{ evaluation.status }}</span></td><td><a class="table-action" href="{{ url_for('school.grade_entry', evaluation_id=evaluation.id) }}">Saisir {{ icon('arrow-right', 14) }}</a></td></tr>{% else %}<tr><td colspan="7" class="empty-cell">Aucune fiche d’évaluation n’est disponible pour ce compte.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="note-hint"><span>{{ icon('info', 16) }}</span><span><b>À savoir</b> — Les notes validées sont seules prises en compte dans les moyennes, classements et bulletins. Une note vide reste « manquante », jamais assimilée à zéro.</span></div>
+{% endblock %}

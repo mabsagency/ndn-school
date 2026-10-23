@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Connexion{% endblock %}
+{% block auth_content %}
+<main class="login-page">
+  <div class="login-visual">
+    <div class="login-brand"><span class="brand-mark">{% if school_logo_url %}<img src="{{ school_logo_url }}" alt="Logo officiel du collège">{% else %}NDN{% endif %}</span><div><b>NOTRE-DAME<br>DES NATIONS</b><small>COLLÈGE CATHOLIQUE BILINGUE</small></div></div>
+    <div class="login-message">
+      <span class="eyebrow">L’EXCELLENCE, ENSEMBLE</span>
+      <h1>Chaque résultat<br>raconte un <em>parcours.</em></h1>
+      <p>Un espace de confiance pour accompagner les élèves, valoriser le travail des enseignants et éclairer les décisions pédagogiques.</p>
+      <div class="visual-stats"><div><b>Suivi</b><span>des apprentissages</span></div><i></i><div><b>Réussite</b><span>pour chaque élève</span></div></div>
+    </div>
+    <div class="visual-footer">DOUALA · CAMEROUN <span>•</span> APPRENDRE, GRANDIR, RÉUSSIR</div>
+  </div>
+  <div class="login-panel">
+    <form class="login-card" method="post" id="loginForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mobile-login-brand"><span class="brand-mark">{% if school_logo_url %}<img src="{{ school_logo_url }}" alt="Logo officiel du collège">{% else %}NDN{% endif %}</span><span>NOTRE-DAME DES NATIONS</span></div>
+      <span class="eyebrow blue-eyebrow">VOTRE ESPACE SCOLAIRE</span>
+      <h2>Bienvenue</h2><p class="muted">Connectez-vous pour accéder à votre espace.</p>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+      {% endwith %}
+      <label for="username">Identifiant personnel ou courriel</label>
+      <input id="username" name="username" autocomplete="username" placeholder="Identifiant attribué ou adresse électronique" required autofocus>
+      <div class="password-label"><label for="password">Mot de passe</label></div>
+      <div class="password-field"><input id="password" type="password" name="password" autocomplete="current-password" placeholder="Votre mot de passe" required><button class="password-toggle" type="button" id="togglePassword" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">{{ icon('eye', 18) }}{{ icon('eye-off', 18) }}</button></div>
+      <button class="button button-primary login-submit" type="submit">Se connecter <span>{{ icon('arrow-right', 16) }}</span></button>
+      <p class="offline-sync-status" id="offlineSyncStatus" role="status" aria-live="polite"></p>
+      <div class="login-note"><span class="lock-icon">{{ icon('lock', 15) }}</span> Connexion sécurisée · Accès réservé au personnel autorisé</div>
+      <p class="pwa-install-hint" data-install-hint hidden>Installez NDN School Manager pour y accéder facilement depuis votre écran d’accueil.</p>
+      <div class="login-divider"><span></span><i>UN COLLÈGE, UNE COMMUNAUTÉ</i><span></span></div>
+      <small class="login-school-name">Collège Catholique Bilingue<br><b>NOTRE-DAME DES NATIONS</b></small>
+    </form>
+    <div class="login-copyright">© 2026 NDN SCHOOL MANAGER <span>·</span> Douala, Cameroun</div>
+  </div>
+</main>
+{% endblock %}

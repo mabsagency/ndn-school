@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Tableau de bord{% endblock %}
+{% block breadcrumb %}Tableau de bord{% endblock %}
+{% block content %}
+<div class="welcome-row">
+  <div><div class="eyebrow blue-eyebrow">{{ 'ESPACE ENSEIGNANT' if mode == 'teacher' else 'VUE D’ENSEMBLE' }}</div><h1>Bonjour, {{ current_user.first_name }} <span class="wave">{{ icon('sparkles', 17) }}</span></h1><p class="muted">{% if mode == 'teacher' %}Ravi de vous retrouver. Voici le suivi de vos classes et de vos évaluations.{% else %}Bienvenue dans votre espace NDN. Ensemble, accompagnons chaque élève vers sa réussite.{% endif %}</p></div>
+  <div class="date-chip"><span>{{ icon('calendar', 18) }}</span><div><small>ANNÉE SCOLAIRE</small><b>{{ year.label }}</b></div></div>
+</div>
+<section class="welcome-banner"><div class="welcome-banner-copy"><span class="welcome-kicker">BIENVENUE AU COLLÈGE NOTRE-DAME DES NATIONS</span><h2>Apprendre, grandir,<br><em>réussir ensemble.</em></h2><p>Un regard attentif sur chaque parcours scolaire, de la salle de classe aux résultats du trimestre.</p><a class="welcome-cta" href="{{ url_for('school.profile') }}">Vérifier mon identité <span>{{ icon('arrow-right', 14) }}</span></a></div><div class="welcome-banner-art" role="img" aria-label="Illustration d’élèves du secondaire à Douala"></div><span class="welcome-orange-dot"></span></section>
+{% if mode == 'management' %}
+<div class="metrics-grid">
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-students">{{ icon('users', 18) }}</span><span class="metric-tag">INSCRITS</span></div><strong>{{ metrics.students }}</strong><span class="metric-label">Élèves</span><div class="metric-foot">Année en cours <span>{{ icon('arrow-right', 13) }}</span></div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-classes">{{ icon('school', 18) }}</span><span class="metric-tag">ACTIVES</span></div><strong>{{ metrics.classes }}</strong><span class="metric-label">Classes</span><div class="metric-foot">Parcours francophone & anglophone</div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-teachers">{{ icon('teacher', 18) }}</span><span class="metric-tag">ÉQUIPE</span></div><strong>{{ metrics.teachers }}</strong><span class="metric-label">Enseignants</span><div class="metric-foot">Comptes actifs</div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-subjects">{{ icon('book', 18) }}</span><span class="metric-tag">PROGRAMME</span></div><strong>{{ metrics.subjects }}</strong><span class="metric-label">Matières</span><div class="metric-foot">Coefficients configurés</div></article>
+</div>
+<div class="dashboard-grid">
+  <section class="panel results-panel">
+    <div class="panel-heading"><div><div class="eyebrow">PERFORMANCE ACADÉMIQUE</div><h2>Moyenne générale par classe</h2></div><span class="period-label">Trimestre 1 <span>{{ icon('chevron-down', 14) }}</span></span></div>
+    {% if class_averages %}
+      <div class="chart-legend"><i></i> Moyenne générale <span>sur 20</span></div>
+      <div class="bar-chart">{% for name, average in class_averages %}<div class="bar-row"><span class="bar-name">{{ name }}</span><div class="bar-track"><div class="bar-fill" style="width:{{ [average * 5, 100]|min }}%"></div></div><b>{{ '%.2f'|format(average) }}</b></div>{% endfor %}</div>
+      <div class="chart-foot">Calcul basé sur les résultats complets et validés</div>
+    {% else %}<div class="empty-state"><span>{{ icon('report', 22) }}</span><b>Les résultats apparaîtront ici</b><p>Les moyennes sont calculées à partir des fiches complètes et validées.</p></div>{% endif %}
+  </section>
+  <section class="panel pending-panel">
+    <div class="panel-heading"><div><div class="eyebrow">À SUIVRE</div><h2>Validation des notes</h2></div><a class="text-link" href="{{ url_for('school.validations') }}">Tout voir <span>{{ icon('arrow-right', 14) }}</span></a></div>
+    <div class="pending-count"><span class="pending-number">{{ metrics.pending }}</span><span>fiche{{ 's' if metrics.pending != 1 }} en attente</span><span class="pending-indicator"></span></div>
+    {% if pending %}<div class="compact-list">{% for evaluation in pending[:4] %}<a href="{{ url_for('school.grade_entry', evaluation_id=evaluation.id) }}"><span class="subject-mini">{{ evaluation.subject.code[:2] }}</span><span class="compact-copy"><b>{{ evaluation.subject.name }}</b><small>{{ evaluation.school_class.name }} · {{ evaluation.period }}</small></span><span class="status-dot"></span></a>{% endfor %}</div>
+    {% else %}<div class="empty-small">Aucune fiche en attente de validation.</div>{% endif %}
+    <a class="button button-outline full-button" href="{{ url_for('school.validations') }}">Ouvrir les validations <span>{{ icon('arrow-right', 15) }}</span></a>
+  </section>
+</div>
+<section class="panel quick-panel"><div class="panel-heading"><div><div class="eyebrow">ACCÈS RAPIDE</div><h2>Les essentiels</h2></div></div><div class="quick-actions">
+  <a href="{{ url_for('school.students') }}"><span class="quick-icon">{{ icon('users', 16) }}</span><b>Ajouter un élève</b><small>Nouvelle inscription</small><span class="quick-arrow">{{ icon('arrow-up-right', 15) }}</span></a>
+  <a href="{{ url_for('school.classes') }}"><span class="quick-icon">{{ icon('school', 16) }}</span><b>Voir les classes</b><small>Effectifs & matières</small><span class="quick-arrow">{{ icon('arrow-up-right', 15) }}</span></a>
+  <a href="{{ url_for('school.evaluations') }}"><span class="quick-icon">{{ icon('plus', 16) }}</span><b>Créer une évaluation</b><small>Nouvelle fiche de notes</small><span class="quick-arrow">{{ icon('arrow-up-right', 15) }}</span></a>
+  <a href="{{ url_for('school.bulletins') }}"><span class="quick-icon">{{ icon('file', 16) }}</span><b>Bulletins scolaires</b><small>Consulter & télécharger</small><span class="quick-arrow">{{ icon('arrow-up-right', 15) }}</span></a>
+</div></section>
+{% else %}
+<div class="metrics-grid teacher-metrics">
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-classes">{{ icon('school', 18) }}</span><span class="metric-tag">CETTE ANNÉE</span></div><strong>{{ assignments|map(attribute='class_id')|unique|list|length }}</strong><span class="metric-label">Classes attribuées</span><div class="metric-foot">Année en cours</div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-subjects">{{ icon('book', 18) }}</span><span class="metric-tag">AFFECTATIONS</span></div><strong>{{ assignments|map(attribute='subject_id')|unique|list|length }}</strong><span class="metric-label">Matières enseignées</span><div class="metric-foot">Selon vos affectations</div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-teachers">{{ icon('edit', 18) }}</span><span class="metric-tag">À COMPLÉTER</span></div><strong>{{ evaluations|selectattr('status', 'equalto', 'Brouillon')|list|length }}</strong><span class="metric-label">Brouillons</span><div class="metric-foot">Fiches non soumises</div></article>
+  <article class="metric-card"><div class="metric-top"><span class="metric-icon icon-students">{{ icon('check', 18) }}</span><span class="metric-tag">EN COURS</span></div><strong>{{ evaluations|selectattr('status', 'equalto', 'Soumise')|list|length }}</strong><span class="metric-label">Soumises</span><div class="metric-foot">En attente de validation</div></article>
+</div>
+<section class="panel"><div class="panel-heading"><div><div class="eyebrow">VOS AFFECTATIONS</div><h2>Classes & matières</h2></div><a class="text-link" href="{{ url_for('school.grade_index') }}">Mes évaluations {{ icon('arrow-right', 14) }}</a></div>
+  <div class="assignment-grid">{% for assignment in assignments %}<a class="assignment-card" href="{{ url_for('school.grade_index') }}"><span class="assignment-symbol">{{ assignment.subject.code[:2] }}</span><span><b>{{ assignment.school_class.name }}</b><small>{{ assignment.subject.name }}</small></span><span class="quick-arrow">{{ icon('arrow-right', 15) }}</span></a>{% else %}<div class="empty-state">Aucune affectation pour cette année scolaire.</div>{% endfor %}</div>
+</section>
+<section class="panel"><div class="panel-heading"><div><div class="eyebrow">SUIVI PÉDAGOGIQUE</div><h2>Évaluations récentes</h2></div></div><div class="table-wrap"><table><thead><tr><th>ÉVALUATION</th><th>CLASSE</th><th>MATIÈRE</th><th>TRIMESTRE</th><th>ÉTAT</th><th></th></tr></thead><tbody>{% for evaluation in evaluations[:8] %}<tr><td><b>{{ evaluation.title }}</b><small class="table-sub">{{ evaluation.held_on.strftime('%d/%m/%Y') }}</small></td><td>{{ evaluation.school_class.name }}</td><td>{{ evaluation.subject.name }}</td><td>{{ evaluation.period }}</td><td><span class="badge badge-{{ evaluation.status|lower }}">{{ evaluation.status }}</span></td><td><a class="table-action" href="{{ url_for('school.grade_entry', evaluation_id=evaluation.id) }}">Ouvrir {{ icon('arrow-right', 14) }}</a></td></tr>{% else %}<tr><td colspan="6" class="empty-cell">Aucune évaluation pour le moment.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endif %}
+{% endblock %}

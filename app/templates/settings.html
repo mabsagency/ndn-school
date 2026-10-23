@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Paramètres{% endblock %}{% block breadcrumb %}Paramètres{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow blue-eyebrow">CONFIGURATION DE L’ÉTABLISSEMENT</div><h1>Paramètres</h1><p class="muted">Personnalisez l’identité visuelle affichée dans l’application.</p></div></div>
+<section class="panel logo-settings">
+  <div class="panel-heading">
+    <div><div class="eyebrow">IDENTITÉ VISUELLE</div><h2>Logo de l’établissement</h2></div>
+  </div>
+  <div class="logo-settings-body">
+    <div class="logo-preview">
+      <div class="logo-preview-frame">
+        <img id="logoPreview" src="{{ school_logo_url or url_for('static', filename='images/ndn-app-icon-192.png') }}" alt="Aperçu du logo du collège">
+      </div>
+      <div class="logo-preview-copy">
+        <span class="logo-preview-status"><span class="logo-preview-dot"></span> AFFICHÉ DANS L’APPLICATION</span>
+        <b>{{ 'Logo actuellement utilisé' if school_logo_url else 'Emblème provisoire NDN' }}</b>
+        <small id="logoFileName" aria-live="polite">{{ 'Vérifiez le logo ci-contre avant de le remplacer.' if school_logo_url else 'Ce visuel NDN temporaire sera remplacé par votre fichier officiel.' }}</small>
+      </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="logo-upload-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="schoolLogo">Choisir un logo officiel</label>
+      <input id="schoolLogo" name="school_logo" type="file" accept="image/png,image/jpeg,image/webp" required aria-describedby="logoHelp">
+      <small id="logoHelp">PNG, JPG ou WEBP · jusqu’à 5 000 × 5 000 px · l’image est convertie et stockée localement.</small>
+      <button class="button button-primary">{{ icon('upload', 16) }} Installer ce logo</button>
+    </form>
+  </div>
+</section>
+<section class="note-hint"><span>{{ icon('info', 16) }}</span><span>Le logo officiel n’a pas pu être identifié avec certitude en ligne. Pour éviter d’utiliser l’emblème d’un autre établissement, le sigle NDN reste affiché jusqu’à ce qu’un administrateur téléverse le bon fichier ici. Cette modification s’applique également à l’écran de connexion.</span></section>
+{% endblock %}

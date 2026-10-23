@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#174a70">
+  <title>Hors connexion · NDN School Manager</title>
+  <style>
+    :root{font-family:"Segoe UI",sans-serif;color:#1e3d50;background:#f3f9fb}
+    *{box-sizing:border-box}
+    body{display:grid;min-height:100vh;margin:0;padding:24px;place-items:center}
+    main{width:min(900px,100%);padding:36px;border:1px solid #dcebf1;border-radius:18px;background:white;box-shadow:0 16px 48px #174a7012;text-align:center}
+    .mark{display:grid;width:68px;height:68px;margin:0 auto 20px;place-items:center;border-radius:20px 20px 20px 6px;color:#174a70;background:#87ceeb;font-size:20px;font-weight:800}
+    h1{margin:0 0 12px;color:#174a70;font-size:24px}
+    p{color:#698495;font-size:14px;line-height:1.65}
+    label{display:block;margin:16px 0 6px;text-align:left;color:#174a70;font-size:13px;font-weight:700}
+    input{width:100%;padding:12px;border:1px solid #dcebf1;border-radius:9px;font:inherit}
+    button{margin-top:14px;padding:12px 20px;border:0;border-radius:9px;color:white;background:#174a70;font:inherit;font-weight:700;cursor:pointer}
+    button.secondary{margin-left:8px;color:#174a70;background:#eaf6fb}
+    [hidden]{display:none!important}
+    .message{min-height:22px;color:#a33;font-size:13px}
+    .data{overflow-x:auto;text-align:left}
+    .data h2{margin:24px 0 8px;color:#174a70;font-size:17px}
+    .data p,.data li{font-size:13px}
+    .data table{width:100%;border-collapse:collapse;font-size:12px}
+    .data th,.data td{padding:8px 5px;border-bottom:1px solid #e3edf1;text-align:left}
+    .data th{color:#174a70}
+    .meta{color:#698495;font-size:12px}
+    small{display:block;margin-top:22px;color:#91a2af;font-size:11px}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark" aria-hidden="true">NDN</div>
+    <h1>Serveur scolaire indisponible</h1>
+    <p>Les données déjà synchronisées sont chiffrées sur cet appareil. Connectez-vous au moins une fois avec le serveur pour créer une copie ; ici, la consultation reste en lecture seule.</p>
+    <form id="offlineUnlock">
+      <label for="offlineUsername">Identifiant personnel (pas l’adresse e-mail)</label>
+      <input id="offlineUsername" autocomplete="username" required>
+      <label for="offlinePassword">Mot de passe</label>
+      <input id="offlinePassword" type="password" autocomplete="current-password" required>
+      <button type="submit">Déverrouiller ma copie</button>
+    </form>
+    <p class="message" id="offlineMessage" role="status" aria-live="polite"></p>
+    <section class="data" id="offlineData" hidden>
+      <p class="meta" id="offlineMeta"></p>
+      <h2>Classes et effectifs</h2>
+      <div id="offlineClasses"></div>
+      <h2>Matières</h2>
+      <div id="offlineSubjects"></div>
+      <h2>Évaluations et notes</h2>
+      <div id="offlineGrades"></div>
+      <button class="secondary" type="button" id="deleteOfflineCopy">Supprimer cette copie</button>
+    </section>
+    <button type="button" class="secondary" onclick="location.reload()">Réessayer la connexion</button>
+    <small>NDN SCHOOL MANAGER · Douala, Cameroun</small>
+  </main>
+  <script src="/static/js/offline-store.js"></script>
+  <script src="/static/js/offline.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Nouvelle évaluation{% endblock %}{% block breadcrumb %}Nouvelle évaluation{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow blue-eyebrow">ÉVALUATIONS · {{ active_year.label }}</div><h1>Créer une évaluation</h1><p class="muted">La fiche est créée en brouillon, avec une ligne par élève inscrit dans la classe.</p></div><a class="button button-outline" href="{{ url_for('school.grade_index') }}">Toutes les fiches</a></div>
+{% if class_subject_options %}
+<section class="panel evaluation-form-panel"><div class="panel-heading"><div><div class="eyebrow">NOUVELLE FICHE</div><h2>Informations de l’évaluation</h2></div></div>
+<form method="post" class="evaluation-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="form-grid"><label class="form-span">Intitulé<input name="title" placeholder="Ex. Interrogation sur les fractions" maxlength="120" required></label>
+<label>Classe et matière<select name="class_id" id="evaluationClass" required><option value="">Choisir une affectation</option>{% for item, teacher_ids in class_subject_options %}<option value="{{ item.class_id }}" data-subject="{{ item.subject_id }}" data-teachers="{{ teacher_ids|join(',') }}">{{ item.school_class.name }} · {{ item.subject.name }}</option>{% endfor %}</select></label>
+<input type="hidden" name="subject_id" id="evaluationSubject">
+{% if current_user.role in ['admin', 'direction'] %}<label>Enseignant responsable<select name="teacher_id" id="evaluationTeacher" required><option value="">Choisir selon l’affectation</option>{% for teacher in teachers %}<option value="{{ teacher.id }}">{{ teacher.full_name }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="teacher_id" value="{{ current_user.id }}">{% endif %}
+<label>Trimestre<select name="period" required><option>Trimestre 1</option><option>Trimestre 2</option><option>Trimestre 3</option></select></label><label>Type<select name="assessment_type" required><option>Interrogation</option><option>Devoir surveillé</option><option>Composition</option><option>Examen</option><option>Travaux pratiques</option><option>Évaluation orale</option></select></label><label>Date<input type="date" name="held_on" value="{{ today_iso }}" required></label><label>Barème<input type="number" name="max_score" value="20" min="0.1" max="1000" step="0.1" required></label><label>Coefficient de l’évaluation<input type="number" name="coefficient" value="1" min="0.1" max="100" step="0.1" required></label></div>
+<div class="evaluation-form-footer"><span>Les coefficients et barèmes restent configurables selon les règles de l’établissement.</span><button class="button button-primary">Créer la fiche {{ icon('arrow-right', 15) }}</button></div></form></section>
+{% else %}<section class="panel empty-state empty-panel"><span>{{ icon('plus', 22) }}</span><b>Aucune affectation disponible</b><p>Associez d’abord une matière à une classe et affectez un enseignant. Un enseignant ne peut créer une évaluation que dans ses propres classes et matières.</p>{% if current_user.role == 'admin' %}<a class="button button-primary" href="{{ url_for('school.classes') }}">Configurer les classes {{ icon('arrow-right', 15) }}</a>{% endif %}</section>{% endif %}
+{% endblock %}
