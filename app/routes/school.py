@@ -125,6 +125,13 @@ def profile():
 @roles_required("admin")
 def settings():
     if request.method == "POST":
+        if not current_app.config["PERSISTENT_UPLOADS"]:
+            flash(
+                "Le stockage durable des fichiers n’est pas configuré sur cet hébergement. "
+                "Le logo personnalisé reste disponible en local.",
+                "danger",
+            )
+            return render_template("settings.html")
         upload = request.files.get("school_logo")
         if not upload or not upload.filename:
             flash("Sélectionnez une image de logo à téléverser.", "danger")

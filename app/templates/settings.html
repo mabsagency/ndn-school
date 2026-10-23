@@ -22,8 +22,12 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="schoolLogo">Choisir un logo officiel</label>
       <input id="schoolLogo" name="school_logo" type="file" accept="image/png,image/jpeg,image/webp" required aria-describedby="logoHelp">
+      {% if config["PERSISTENT_UPLOADS"] %}
       <small id="logoHelp">PNG, JPG ou WEBP · jusqu’à 5 000 × 5 000 px · l’image est convertie et stockée localement.</small>
       <button class="button button-primary">{{ icon('upload', 16) }} Installer ce logo</button>
+      {% else %}
+      <small id="logoHelp">Le stockage persistant des logos n’est pas encore relié à cet hébergement. Le visuel NDN reste utilisé.</small>
+      {% endif %}
     </form>
   </div>
 </section>

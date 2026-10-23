@@ -39,9 +39,29 @@ flask --app run.py init-db
 flask --app run.py run
 ```
 
-Ouvrir ensuite <http://127.0.0.1:5000>. La base SQLite et les sauvegardes se trouvent dans `instance/`. Une base existante n’est pas réinitialisée ni écrasée par `init-db`.
+Ouvrir ensuite <http://127.0.0.1:5000>. La base SQLite et les sauvegardes se trouvent dans `instance/`. Une base existante n’est pas réinitialisée ni écrasée par `init-db`. Pour le développement local, ce serveur doit rester lancé dans le terminal ; il n’est pas le serveur de production. En production sur Vercel, les déploiements remplacent le serveur local et se déclenchent automatiquement après chaque push sur la branche connectée.
 
 La PWA est installable depuis un navigateur compatible sur `localhost` ou une origine HTTPS. Sur iPhone/iPad, ouvrez le site dans Safari puis choisissez **Partager → Sur l’écran d’accueil**. Pour préparer l’accès hors ligne, connectez-vous une première fois depuis l’appareil et le navigateur à utiliser. Ensuite, si le serveur devient inaccessible, ouvrez l’application ; saisissez l’identifiant et le mot de passe utilisés lors de la synchronisation pour consulter la copie chiffrée. Il s’agit d’un instantané de la dernière connexion, pas d’une synchronisation en temps réel ; les saisies et changements hors ligne ne sont pas conservés.
+
+## Déploiement Vercel et Supabase
+
+Le dépôt contient un point d’entrée Flask pour Vercel (`index.py`) et une étape de build qui copie les ressources PWA vers `public/static/`, servies par le CDN Vercel. Vercel exécute Flask dans une fonction sans serveur persistant : le système de fichiers local n’est pas durable. Les téléversements de logo sont donc désactivés sur Vercel jusqu’à l’ajout d’un stockage persistant tel que Supabase Storage. La commande locale de sauvegarde SQLite ne s’applique pas à Supabase.
+
+1. Créez un projet Supabase et récupérez l’URI PostgreSQL dans **Connect**. Pour les fonctions Vercel, choisissez le **Transaction pooler** (port généralement 6543), et ajoutez `sslmode=require`. L’application adapte automatiquement l’URI au pilote `psycopg`, désactive les requêtes préparées pour le pooler et évite de garder un pool de connexions dans les fonctions serverless.
+2. Dans Supabase, appliquez le schéma avec Flask-Migrate avant de rendre le site accessible. Depuis un terminal local configuré vers l’URI du pooler approprié :
+
+   ```bash
+   export DATABASE_URL='postgresql://postgres.PROJECT_REF:PASSWORD@POOLER_HOST:6543/postgres?sslmode=require'
+   export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+   flask --app run.py db upgrade
+   flask --app run.py create-admin
+   ```
+
+   La commande interactive `create-admin` crée le premier administrateur avec un mot de passe d’au moins 12 caractères. N’exécutez pas `init-db` sur la base de production : elle charge les comptes et les données fictives de démonstration.
+3. Importez `mabsagency/ndn-school` dans Vercel, gardez `main` comme branche de production et ajoutez, dans **Project → Settings → Environment Variables**, `DATABASE_URL` (URI de transaction Supabase complète) et `SECRET_KEY` (secret aléatoire différent de celui des exemples). N’ajoutez ni `SUPABASE_SERVICE_ROLE_KEY` ni clé de base de données au code frontend.
+4. Déployez une première fois depuis Vercel. Les prochains commits envoyés sur `main` déclencheront automatiquement les déploiements et mises à jour du site ; les pull requests peuvent générer des prévisualisations selon la configuration Git Vercel. Utilisez l’URL HTTPS Vercel pour installer et synchroniser la PWA. Modifiez les variables d’environnement dans Vercel et redéployez après leur changement.
+
+Le processus d’application des migrations à Supabase est manuel et doit précéder tout déploiement qui modifie le schéma. Vercel ne lance pas `flask db upgrade` automatiquement à chaque démarrage de fonction, et le projet n’a pas besoin de laisser un serveur Flask local ouvert après le déploiement. Pour exécuter des migrations depuis un réseau qui ne prend pas en charge IPv6, utilisez l’URI Supabase du **Session pooler** pour la commande CLI, puis conservez le **Transaction pooler** dans Vercel.
 
 ## Comptes de démonstration
 
@@ -92,6 +112,6 @@ La commande écrit un fichier daté dans `instance/`. Pour restaurer, arrêtez l
 - Le refus remet une fiche en brouillon et requiert un motif. Une fiche validée est verrouillée ; sa correction explicite par la direction ou l’administration exige une justification et apparaît dans l’historique.
 - Les bulletins PDF sont calculés à la demande. Le prototype ne stocke pas de version publiée immuable : une procédure de publication et d’archivage versionné est nécessaire avant un usage officiel.
 - Les imports Excel/CSV, l’export tableur et l’archivage/versionnement persistant des bulletins restent à développer.
-- Pour utiliser PostgreSQL, définissez `DATABASE_URL` avec l’URL du pilote correspondant et ajoutez ce pilote dans les dépendances. La sauvegarde `backup-db` est réservée à SQLite.
+- Pour utiliser PostgreSQL/Supabase, définissez `DATABASE_URL` avec l’URI PostgreSQL fournie par Supabase ; la dépendance `psycopg` est incluse. La sauvegarde `backup-db` est réservée à SQLite.
 - Après une modification du schéma, créez une migration avec `flask --app run.py db migrate -m "description"`, vérifiez le script généré, puis appliquez-le avec `flask --app run.py db upgrade`.
 - Pour un serveur de réseau local, utilisez un serveur WSGI, HTTPS si possible, un `SECRET_KEY` secret, une politique de sauvegarde testée, des comptes propres à l’établissement et une revue de sécurité. Ne lancez pas le serveur de développement Flask en production.

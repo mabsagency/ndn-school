@@ -2,11 +2,13 @@ from io import BytesIO
 from pathlib import Path
 import re
 
+import pytest
+
 from app.models import (
     ClassSubject, Enrollment, Evaluation, Grade, GradeHistory, SchoolClass, Student, Subject,
     TeachingAssignment, User,
 )
-from app import db
+from app import create_app, db, normalize_database_url
 from app.services.results import calculate_student_results, class_rankings
 
 
@@ -120,6 +122,31 @@ def test_pwa_resources_are_available_without_authentication(client):
     worker_script = worker.get_data(as_text=True)
     assert '"/static/js/offline-store.js"' in worker_script
     assert 'url.pathname.startsWith("/api/")' in worker_script
+
+
+def test_database_url_normalization_supports_supabase_and_relative_sqlite(tmp_path):
+    supabase_url = normalize_database_url(
+        "postgres://postgres:secret@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+        tmp_path,
+    )
+    assert supabase_url.drivername == "postgresql+psycopg"
+    assert supabase_url.password == "secret"
+    assert supabase_url.query["sslmode"] == "require"
+
+    sqlite_url = normalize_database_url("sqlite:///ndn_school.db", tmp_path)
+    assert sqlite_url.database == str(tmp_path / "ndn_school.db")
+
+
+def test_vercel_requires_persistent_database_and_secret(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        create_app({"TESTING": True})
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    with pytest.raises(RuntimeError, match="SECRET_KEY"):
+        create_app({"TESTING": True})
 
 
 def test_offline_snapshot_requires_login_and_never_discloses_sensitive_fields(client, login_user):

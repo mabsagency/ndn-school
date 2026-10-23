@@ -8,34 +8,65 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.engine import URL, make_url
+from sqlalchemy.pool import NullPool
 
 db = SQLAlchemy()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
 
+def normalize_database_url(database_url, instance_path):
+    url = make_url(database_url)
+    if url.drivername in ("postgres", "postgresql", "postgresql+psycopg2"):
+        url = url.set(drivername="postgresql+psycopg")
+        if url.host and "supabase" in url.host and "sslmode" not in url.query:
+            url = url.update_query_dict({"sslmode": "require"})
+        return url
+
+    if url.drivername == "sqlite" and url.database not in (None, "", ":memory:"):
+        database = Path(url.database)
+        if not database.is_absolute():
+            database = Path(instance_path) / database
+        return URL.create("sqlite", database=str(database))
+    return url
+
+
 def create_app(test_config=None):
     load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
-    database_url = os.environ.get(
-        "DATABASE_URL", "sqlite:///" + str(Path(app.instance_path) / "ndn_school.db")
-    )
-    if database_url.startswith("sqlite:///") and not database_url.startswith("sqlite:////"):
-        database_url = "sqlite:///" + str(Path(app.instance_path) / database_url.removeprefix("sqlite:///"))
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        if os.environ.get("VERCEL"):
+            raise RuntimeError("DATABASE_URL doit être configurée dans les variables d’environnement Vercel.")
+        database_url = f"sqlite:///{Path(app.instance_path) / 'ndn_school.db'}"
+    database_url = normalize_database_url(database_url, app.instance_path)
+    secret_key = os.environ.get("SECRET_KEY")
+    if not secret_key and os.environ.get("VERCEL"):
+        raise RuntimeError("SECRET_KEY doit être configurée dans les variables d’environnement Vercel.")
+    is_vercel = bool(os.environ.get("VERCEL"))
+    engine_options = {"pool_pre_ping": True}
+    if database_url.drivername.startswith("postgresql"):
+        engine_options["connect_args"] = {"prepare_threshold": None}
+        if is_vercel:
+            engine_options["poolclass"] = NullPool
     app.config.update(
-        SECRET_KEY=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
-        SQLALCHEMY_DATABASE_URI=database_url,
+        SECRET_KEY=secret_key or secrets.token_hex(32),
+        SQLALCHEMY_DATABASE_URI=database_url.render_as_string(hide_password=False),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SQLALCHEMY_ENGINE_OPTIONS=engine_options,
         MAX_CONTENT_LENGTH=2 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "0") == "1",
+        SESSION_COOKIE_SECURE=is_vercel or os.environ.get("COOKIE_SECURE", "0") == "1",
         WTF_CSRF_TIME_LIMIT=None,
+        PERSISTENT_UPLOADS=not is_vercel,
     )
     if test_config:
         app.config.update(test_config)
 
-    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+    if not is_vercel:
+        Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     db.init_app(app)
     Migrate(app, db)
     login_manager.init_app(app)
@@ -75,6 +106,38 @@ def create_app(test_config=None):
         db.create_all()
         seed_demo_data()
         print("Base NDN créée et données de démonstration chargées.")
+
+    @app.cli.command("create-admin")
+    def create_admin():
+        """Interactively create the first production administrator."""
+        import click
+
+        from app.models import User
+
+        if User.query.filter_by(role="admin", active=True).first():
+            raise click.ClickException("Un administrateur actif existe déjà.")
+        username = click.prompt("Identifiant administrateur").strip()
+        email = click.prompt("Adresse électronique").strip().lower()
+        first_name = click.prompt("Prénom").strip()
+        last_name = click.prompt("Nom").strip()
+        password = click.prompt(
+            "Mot de passe (12 caractères minimum)", hide_input=True,
+            confirmation_prompt=True,
+        )
+        if len(password) < 12:
+            raise click.ClickException("Le mot de passe doit contenir au moins 12 caractères.")
+        if User.query.filter(
+            db.or_(User.username == username, db.func.lower(User.email) == email)
+        ).first():
+            raise click.ClickException("Cet identifiant ou cette adresse électronique existe déjà.")
+        user = User(
+            username=username, email=email, first_name=first_name,
+            last_name=last_name, role="admin", active=True,
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        click.echo("Compte administrateur créé.")
 
     @app.cli.command("backup-db")
     def backup_db():
