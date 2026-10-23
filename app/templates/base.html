@@ -30,7 +30,11 @@
       {% if current_user.role in ['admin', 'direction'] %}
       <a class="nav-link {% if request.endpoint == 'school.students' %}active{% endif %}" href="{{ url_for('school.students') }}"><span class="nav-icon">{{ icon('users') }}</span> Élèves</a>
       <a class="nav-link {% if request.endpoint == 'school.classes' %}active{% endif %}" href="{{ url_for('school.classes') }}"><span class="nav-icon">{{ icon('school') }}</span> Classes</a>
+      {% endif %}
+      {% if current_user.role in ['admin', 'direction', 'enseignant'] %}
       <a class="nav-link {% if request.endpoint == 'school.subjects' %}active{% endif %}" href="{{ url_for('school.subjects') }}"><span class="nav-icon">{{ icon('book') }}</span> Matières</a>
+      {% endif %}
+      {% if current_user.role in ['admin', 'direction'] %}
       {% if current_user.role == 'admin' %}<a class="nav-link {% if request.endpoint == 'school.teachers' %}active{% endif %}" href="{{ url_for('school.teachers') }}"><span class="nav-icon">{{ icon('teacher') }}</span> Enseignants</a>{% endif %}
       {% endif %}
       <a class="nav-link {% if request.endpoint == 'school.evaluations' %}active{% endif %}" href="{{ url_for('school.evaluations') }}"><span class="nav-icon">{{ icon('plus') }}</span> Nouvelle évaluation</a>

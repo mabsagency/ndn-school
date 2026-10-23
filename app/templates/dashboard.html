@@ -17,11 +17,11 @@
 </div>
 <div class="dashboard-grid">
   <section class="panel results-panel">
-    <div class="panel-heading"><div><div class="eyebrow">PERFORMANCE ACADÉMIQUE</div><h2>Moyenne générale par classe</h2></div><span class="period-label">Trimestre 1 <span>{{ icon('chevron-down', 14) }}</span></span></div>
+    <div class="panel-heading"><div><div class="eyebrow">PERFORMANCE ACADÉMIQUE</div><h2>Moyenne générale par classe</h2></div><form method="get"><label class="period-label">Période <select name="period" onchange="this.form.submit()">{% for item in periods %}<option value="{{ item }}" {% if period == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label></form></div>
     {% if class_averages %}
       <div class="chart-legend"><i></i> Moyenne générale <span>sur 20</span></div>
-      <div class="bar-chart">{% for name, average in class_averages %}<div class="bar-row"><span class="bar-name">{{ name }}</span><div class="bar-track"><div class="bar-fill" style="width:{{ [average * 5, 100]|min }}%"></div></div><b>{{ '%.2f'|format(average) }}</b></div>{% endfor %}</div>
-      <div class="chart-foot">Calcul basé sur les résultats complets et validés</div>
+      <div class="bar-chart">{% for name, average, complete_count in class_averages %}<div class="bar-row"><span class="bar-name">{{ name }}</span><div class="bar-track"><div class="bar-fill" style="width:{{ [average * 5, 100]|min }}%"></div></div><b>{{ '%.2f'|format(average) }}</b><small>{{ complete_count }} résultat{{ 's' if complete_count != 1 }}</small></div>{% endfor %}</div>
+      <div class="chart-foot">Calcul basé sur les moyennes individuelles complètes et validées · {{ period }}</div>
     {% else %}<div class="empty-state"><span>{{ icon('report', 22) }}</span><b>Les résultats apparaîtront ici</b><p>Les moyennes sont calculées à partir des fiches complètes et validées.</p></div>{% endif %}
   </section>
   <section class="panel pending-panel">

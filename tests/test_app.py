@@ -9,7 +9,11 @@ from app.models import (
     TeachingAssignment, User,
 )
 from app import create_app, db, normalize_database_url
-from app.services.results import calculate_student_results, class_rankings
+from app.services.results import (
+    calculate_class_average,
+    calculate_student_results,
+    class_rankings,
+)
 
 
 def test_login_and_role_protection(client, login_user):
@@ -331,6 +335,36 @@ def test_admin_can_create_and_assign_subjects(client, login_user, app):
     assert "Matière et coefficient associés à la classe." in response.get_data(as_text=True)
 
 
+def test_teacher_can_create_subject_for_an_assigned_class_without_assigning_itself(
+    client, login_user, app
+):
+    login_user(client, "enseignant", "NDN-Prof-2026!")
+    assert client.get("/matieres").status_code == 200
+    response = client.post("/matieres", data={
+        "action": "create", "name": "Arts plastiques", "code": "ART",
+        "class_id": "1", "coefficient": "2",
+    }, follow_redirects=True)
+    assert "La matière Arts plastiques a été créée." in response.get_data(as_text=True)
+
+    with app.app_context():
+        subject = Subject.query.filter_by(code="ART").one()
+        assert ClassSubject.query.filter_by(
+            subject_id=subject.id, class_id=1, year_id=1, coefficient=2
+        ).one()
+        assert TeachingAssignment.query.filter_by(subject_id=subject.id).count() == 0
+        unassigned_class = SchoolClass(name="Classe non attribuée", level="Test")
+        db.session.add(unassigned_class)
+        db.session.commit()
+        unassigned_class_id = unassigned_class.id
+
+    denied = client.post("/matieres", data={
+        "action": "assign", "subject_id": "1",
+        "class_id": str(unassigned_class_id), "coefficient": "1",
+    })
+    assert denied.status_code == 403
+    assert client.get("/enseignants").status_code == 403
+
+
 def test_admin_can_create_teacher_and_evaluation(client, login_user, app):
     login_user(client, "admin23", "admin000")
     response = client.post("/enseignants", data={
@@ -411,6 +445,36 @@ def test_class_ranking_omits_incomplete_results(app):
         assert ranking == []
 
 
+def test_class_averages_are_automatic_and_displayed_across_results_pages(
+    client, login_user, app
+):
+    with app.app_context():
+        enrollments = Enrollment.query.filter_by(class_id=1, year_id=1).all()
+        complete_averages = [
+            average for enrollment in enrollments
+            for _, average, complete in [
+                calculate_student_results(enrollment, "Trimestre 1")
+            ]
+            if complete and average is not None
+        ]
+        expected = round(sum(complete_averages) / len(complete_averages), 2)
+        assert calculate_class_average(1, 1, "Trimestre 1") == (
+            expected, len(complete_averages)
+        )
+
+    login_user(client, "admin23", "admin000")
+    students = client.get("/eleves?class_id=1&period=Trimestre%201")
+    assert "MOYENNE GÉNÉRALE · Trimestre 1" in students.get_data(as_text=True)
+    assert "Complète et validée" in students.get_data(as_text=True)
+    classes = client.get("/classes?period=Trimestre%201")
+    assert f"{expected:.2f} / 20" in classes.get_data(as_text=True)
+    dashboard = client.get("/?period=Trimestre%201")
+    assert f"{expected:.2f}" in dashboard.get_data(as_text=True)
+    reports = client.get("/rapports?period=Trimestre%201")
+    assert f"{expected:.2f} / 20" in reports.get_data(as_text=True)
+    assert client.get("/classes?period=semestre").status_code == 400
+
+
 def test_grade_entry_rejects_score_above_max(client, login_user, app):
     with app.app_context():
         evaluation = Evaluation.query.filter_by(status="Brouillon").first()
@@ -474,6 +538,8 @@ def test_grade_submission_validation_and_bulletin_pdf(client, login_user, app):
     assert response.status_code == 200
     assert response.mimetype == "application/pdf"
     assert response.data.startswith(b"%PDF")
+    assert response.headers["Content-Disposition"].startswith("attachment;")
+    assert ".pdf" in response.headers["Content-Disposition"]
 
     correction_response = client.post(
         f"/evaluation/{draft_id}?correction=1",

@@ -73,6 +73,18 @@ def calculate_student_results(enrollment, period, require_validated=True):
     return output, overall, complete
 
 
+def calculate_class_average(class_id, year_id, period):
+    averages = []
+    for enrollment in class_enrollments(class_id, year_id):
+        _, average, complete = calculate_student_results(enrollment, period)
+        if complete and average is not None:
+            averages.append(average)
+    return (
+        round(sum(averages) / len(averages), 2) if averages else None,
+        len(averages),
+    )
+
+
 def class_rankings(class_id, year_id, period):
     rankings = []
     for enrollment in class_enrollments(class_id, year_id):

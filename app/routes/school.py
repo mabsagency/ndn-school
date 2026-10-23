@@ -1,7 +1,10 @@
 from datetime import date, datetime
 from functools import wraps
+from io import BytesIO
 import math
 from pathlib import Path
+from werkzeug.utils import secure_filename
+from xml.sax.saxutils import escape
 
 from flask import Blueprint, abort, current_app, flash, make_response, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
@@ -26,10 +29,16 @@ from app.models import (
     TeachingAssignment,
     User,
 )
-from app.services.results import calculate_student_results, class_enrollments, class_rankings
+from app.services.results import (
+    calculate_class_average,
+    calculate_student_results,
+    class_enrollments,
+    class_rankings,
+)
 from app.services.offline import build_offline_snapshot
 
 bp = Blueprint("school", __name__)
+PERIODS = ("Trimestre 1", "Trimestre 2", "Trimestre 3")
 
 
 def roles_required(*roles):
@@ -67,6 +76,21 @@ def teacher_can_access(class_id, subject_id):
         subject_id=subject_id,
         year_id=active_year().id,
     ).first() is not None
+
+
+def teacher_can_access_class(class_id, year_id):
+    return TeachingAssignment.query.filter_by(
+        teacher_id=current_user.id,
+        class_id=class_id,
+        year_id=year_id,
+    ).first() is not None
+
+
+def requested_period():
+    period = request.args.get("period", PERIODS[0])
+    if period not in PERIODS:
+        abort(400)
+    return period
 
 
 @bp.app_context_processor
@@ -172,19 +196,14 @@ def dashboard():
         )
 
     classes = SchoolClass.query.order_by(SchoolClass.name).all()
+    period = requested_period()
     evaluations = Evaluation.query.filter_by(year_id=year.id).all()
     pending = [item for item in evaluations if item.status == "Soumise"]
     class_averages = []
     for school_class in classes:
-        enrollments = class_enrollments(school_class.id, year.id)
-        averages = [
-            average
-            for enrollment in enrollments
-            for _, average, complete in [calculate_student_results(enrollment, "Trimestre 1")]
-            if complete and average is not None
-        ]
-        if averages:
-            class_averages.append((school_class.name, round(sum(averages) / len(averages), 2)))
+        average, complete_count = calculate_class_average(school_class.id, year.id, period)
+        if average is not None:
+            class_averages.append((school_class.name, average, complete_count))
     metrics = {
         "students": Enrollment.query.filter_by(year_id=year.id, status="Inscrit").count(),
         "classes": len(classes),
@@ -195,7 +214,8 @@ def dashboard():
     }
     return render_template(
         "dashboard.html", mode="management", year=year, metrics=metrics,
-        classes=classes, class_averages=class_averages, pending=pending
+        classes=classes, class_averages=class_averages, pending=pending,
+        period=period, periods=PERIODS,
     )
 
 
@@ -241,12 +261,24 @@ def students():
                    Student.matricule.ilike(f"%{search}%"))
         )
     selected_class = request.args.get("class_id", type=int)
+    period = requested_period()
     if selected_class:
         query = query.filter(Enrollment.class_id == selected_class)
     entries = query.order_by(Student.last_name, Student.first_name).all()
+    enrollment_by_student = {
+        enrollment.student_id: enrollment
+        for enrollment in Enrollment.query.filter_by(year_id=year.id).all()
+    }
+    student_averages = {}
+    for student in entries:
+        enrollment = enrollment_by_student.get(student.id)
+        if enrollment:
+            _, average, complete = calculate_student_results(enrollment, period)
+            student_averages[student.id] = (average, complete)
     return render_template(
         "students.html", students=entries, classes=SchoolClass.query.order_by(SchoolClass.name).all(),
-        search=search, selected_class=selected_class
+        search=search, selected_class=selected_class, period=period, periods=PERIODS,
+        student_averages=student_averages,
     )
 
 
@@ -301,21 +333,32 @@ def classes():
             flash(f"La classe {school_class.name} a été créée pour {year.label}.", "success")
             return redirect(url_for("school.classes"))
     class_rows = []
+    period = requested_period()
     for school_class in SchoolClass.query.order_by(SchoolClass.name).all():
         count = Enrollment.query.filter_by(class_id=school_class.id, year_id=year.id, status="Inscrit").count()
         subjects = ClassSubject.query.filter_by(class_id=school_class.id, year_id=year.id).all()
-        class_rows.append((school_class, count, subjects))
+        average, complete_count = calculate_class_average(school_class.id, year.id, period)
+        class_rows.append((school_class, count, subjects, average, complete_count))
     return render_template(
         "classes.html", class_rows=class_rows,
         subjects=Subject.query.filter_by(active=True).order_by(Subject.name).all(),
         teachers=User.query.filter_by(role="enseignant", active=True).order_by(User.last_name).all(),
+        period=period, periods=PERIODS,
     )
 
 
 @bp.route("/matieres", methods=["GET", "POST"])
-@roles_required("admin", "direction")
+@roles_required("admin", "direction", "enseignant")
 def subjects():
     year = active_year()
+    teacher_class_ids = None
+    if current_user.role == "enseignant":
+        teacher_class_ids = {
+            assignment.class_id
+            for assignment in TeachingAssignment.query.filter_by(
+                teacher_id=current_user.id, year_id=year.id
+            ).all()
+        }
     if request.method == "POST":
         action = request.form.get("action", "create")
         if action == "assign":
@@ -329,6 +372,11 @@ def subjects():
                 or not math.isfinite(coefficient) or coefficient <= 0
             ):
                 flash("Choisissez une matière, une classe et un coefficient supérieur à zéro.", "danger")
+                return redirect(url_for("school.subjects"))
+            elif teacher_class_ids is not None and school_class.id not in teacher_class_ids:
+                abort(403)
+            elif not subject.active:
+                flash("Cette matière est désactivée et ne peut pas être associée.", "danger")
                 return redirect(url_for("school.subjects"))
             elif ClassSubject.query.filter_by(
                 subject_id=subject.id, class_id=school_class.id, year_id=year.id
@@ -347,10 +395,13 @@ def subjects():
             abort(400)
         code = request.form.get("code", "").strip().upper()
         name = request.form.get("name", "").strip()
+        class_id_text = request.form.get("class_id", "").strip()
         class_id = request.form.get("class_id", type=int)
         coefficient = request.form.get("coefficient", type=float)
         if action == "create" and (not code or not name):
             flash("Le code et le nom de la matière sont obligatoires.", "danger")
+        elif class_id_text and not class_id:
+            flash("Sélectionnez une classe valide.", "danger")
         elif action == "create" and Subject.query.filter(
             db.or_(Subject.code == code, Subject.name.ilike(name))
         ).first():
@@ -360,13 +411,16 @@ def subjects():
         ):
             flash("Le coefficient doit être supérieur à zéro.", "danger")
         elif action == "create":
+            school_class = db.session.get(SchoolClass, class_id) if class_id else None
+            if class_id and not school_class:
+                flash("Sélectionnez une classe existante.", "danger")
+                return redirect(url_for("school.subjects"))
+            if class_id and teacher_class_ids is not None and class_id not in teacher_class_ids:
+                abort(403)
             subject = Subject(code=code, name=name)
             db.session.add(subject)
             db.session.flush()
             if class_id:
-                if not db.session.get(SchoolClass, class_id):
-                    db.session.rollback()
-                    abort(400)
                 db.session.add(ClassSubject(
                     class_id=class_id, subject_id=subject.id, year_id=year.id,
                     coefficient=coefficient,
@@ -375,10 +429,15 @@ def subjects():
             flash(f"La matière {name} a été créée.", "success")
             return redirect(url_for("school.subjects"))
     rows = ClassSubject.query.filter_by(year_id=year.id).order_by(ClassSubject.class_id).all()
+    if teacher_class_ids is not None:
+        rows = [row for row in rows if row.class_id in teacher_class_ids]
     return render_template(
         "subjects.html", rows=rows,
         subjects=Subject.query.filter_by(active=True).order_by(Subject.name).all(),
-        classes=SchoolClass.query.order_by(SchoolClass.name).all(),
+        classes=SchoolClass.query.filter(
+            SchoolClass.id.in_(teacher_class_ids)
+        ).order_by(SchoolClass.name).all() if teacher_class_ids is not None and teacher_class_ids
+        else SchoolClass.query.order_by(SchoolClass.name).all() if teacher_class_ids is None else [],
     )
 
 
@@ -731,7 +790,7 @@ def rankings():
 def bulletins():
     year = active_year()
     class_id = request.args.get("class_id", type=int)
-    period = request.args.get("period", "Trimestre 1")
+    period = requested_period()
     classes = SchoolClass.query.order_by(SchoolClass.name).all()
     enrollments = class_enrollments(class_id, year.id) if class_id else []
     ranking = {enrollment.id: (rank, average) for rank, enrollment, average
@@ -749,7 +808,7 @@ def bulletins():
 @roles_required("admin", "direction")
 def bulletin_pdf(enrollment_id, period):
     enrollment = db.get_or_404(Enrollment, enrollment_id)
-    if period not in ("Trimestre 1", "Trimestre 2", "Trimestre 3"):
+    if period not in PERIODS:
         abort(404)
     subject_results, overall, complete = calculate_student_results(enrollment, period)
     if not complete or overall is None:
@@ -757,7 +816,7 @@ def bulletin_pdf(enrollment_id, period):
         return redirect(url_for("school.bulletins", class_id=enrollment.class_id, period=period))
     rankings = class_rankings(enrollment.class_id, enrollment.year_id, period)
     rank = next((position for position, item, _ in rankings if item.id == enrollment.id), None)
-    buffer = __import__("io").BytesIO()
+    buffer = BytesIO()
     document = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm,
                                  topMargin=18*mm, bottomMargin=18*mm)
     styles = getSampleStyleSheet()
@@ -771,9 +830,9 @@ def bulletin_pdf(enrollment_id, period):
         Paragraph(f"{enrollment.school_year.label} · {period}", styles["Heading3"]),
         Spacer(1, 5*mm),
         Paragraph(
-            f"<b>Élève :</b> {enrollment.student.full_name} &nbsp;&nbsp; "
-            f"<b>Matricule :</b> {enrollment.student.matricule}<br/>"
-            f"<b>Classe :</b> {enrollment.school_class.name}",
+            f"<b>Élève :</b> {escape(enrollment.student.full_name)} &nbsp;&nbsp; "
+            f"<b>Matricule :</b> {escape(enrollment.student.matricule)}<br/>"
+            f"<b>Classe :</b> {escape(enrollment.school_class.name)}",
             styles["Normal"],
         ),
         Spacer(1, 6*mm),
@@ -801,8 +860,11 @@ def bulletin_pdf(enrollment_id, period):
     document.build(story)
     response = make_response(buffer.getvalue())
     response.headers["Content-Type"] = "application/pdf"
+    filename = secure_filename(
+        f"bulletin-{enrollment.student.matricule}-{period[-1]}.pdf"
+    ) or f"bulletin-{enrollment.student.id}-{period[-1]}.pdf"
     response.headers["Content-Disposition"] = (
-        f'attachment; filename="bulletin-{enrollment.student.matricule}-{period[-1]}.pdf"'
+        f'attachment; filename="{filename}"'
     )
     return response
 
@@ -811,14 +873,10 @@ def bulletin_pdf(enrollment_id, period):
 @roles_required("admin", "direction")
 def reports():
     year = active_year()
+    period = requested_period()
     summary = []
     for school_class in SchoolClass.query.order_by(SchoolClass.name).all():
         enrollments = class_enrollments(school_class.id, year.id)
-        complete = [
-            average for enrollment in enrollments
-            for _, average, is_complete in [calculate_student_results(enrollment, "Trimestre 1")]
-            if is_complete and average is not None
-        ]
-        summary.append((school_class, len(enrollments), len(complete),
-                        round(sum(complete) / len(complete), 2) if complete else None))
-    return render_template("reports.html", summary=summary)
+        average, complete_count = calculate_class_average(school_class.id, year.id, period)
+        summary.append((school_class, len(enrollments), complete_count, average))
+    return render_template("reports.html", summary=summary, period=period, periods=PERIODS)

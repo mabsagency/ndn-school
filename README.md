@@ -8,10 +8,10 @@ Prototype scolaire local pour le Collège Catholique Bilingue Notre-Dame des Nat
 - Tableau de bord accueillant calculé depuis SQLite, catalogue démonstration de classes francophones (6e à Terminale) et anglophones (Form 1 à Upper Sixth), création de classes à la demande, association de matières/coefficient et gestion des élèves.
 - Date de naissance des élèves vérifiée entre 2009 et 2028. Connexion nominative par identifiant ou courriel, avec une page personnelle pour modifier son identité, son identifiant, son courriel et son mot de passe.
 - Personnalisation possible du logo depuis **Paramètres**, avec aperçu immédiat du fichier choisi. Seul un administrateur peut téléverser une image PNG/JPG/WEBP ; elle est validée puis convertie localement en PNG. Le logo officiel n’ayant pas pu être identifié avec certitude dans les résultats publics en ligne, l’emblème NDN reste affiché par défaut.
-- Création des comptes enseignants, affectations aux classes/matières et création d’évaluations depuis les affectations autorisées.
+- Création des comptes enseignants, affectations aux classes/matières et création d’évaluations depuis les affectations autorisées. Les enseignants peuvent aussi proposer des matières et les associer à leurs classes, sans gérer les affectations.
 - Saisie des notes par fiche, brouillons, soumission, contrôle par la direction, refus avec motif, états distincts pour note manquante, absence et dispense.
-- Calcul serveur des moyennes normalisées sur 20, pondération configurable des évaluations et des matières, classement des résultats complets validés.
-- Génération de bulletins PDF A4 pour les résultats complets et validés.
+- Calcul serveur des moyennes normalisées sur 20, pondération configurable des évaluations et des matières, classement des résultats complets validés. Les moyennes élèves et classe s’affichent automatiquement sur les écrans de suivi et sont consultables par trimestre.
+- Téléchargement des bulletins PDF A4 pour les résultats complets et validés.
 - Affichage responsive testé sur téléphone : navigation latérale avec fond de fermeture et touche Échap, contrôles tactiles agrandis, formulaires lisibles sans zoom automatique et tableaux défilant horizontalement. Les fichiers statiques et polices système fonctionnent sans accès Internet.
 - Progressive Web App installable avec consultation hors ligne en lecture seule. Après une connexion en ligne réussie, une copie minimale limitée au rôle (classes, élèves inscrits, matières, évaluations et notes) est chiffrée avec AES-GCM dans IndexedDB ; le mot de passe du compte sert à dériver la clé via PBKDF2 et est demandé pour déverrouiller la copie. Le service worker ne met en cache ni pages de données ni réponses API. Aucune modification hors ligne n’est enregistrée ou synchronisée. La sécurité du chiffrement dépend de la robustesse du mot de passe : le compte de démonstration `admin23` / `admin000` est trop faible pour conserver une copie sur un appareil partagé. Supprimez la copie dans l’écran hors ligne ou effacez les données du site dans le navigateur.
 
@@ -79,10 +79,10 @@ Ces mots de passe publics sont réservés à la démonstration locale. `admin000
 2. Ouvrez **Mon identité** pour modifier vos informations personnelles et votre mot de passe.
 3. Facultatif : téléversez le fichier vérifié du logo officiel dans **Paramètres**.
 4. Créez une classe dans **Classes** ; associez au besoin les matières, leurs coefficients et les enseignants déjà créés.
-5. Créez une matière dans **Matières** si nécessaire, puis créez les comptes et affectations depuis **Enseignants**.
+5. Créez une matière dans **Matières** si nécessaire. Les enseignants peuvent également proposer une matière pour leurs classes ; l’administration gère toujours les affectations.
 6. Créez une évaluation dans **Nouvelle évaluation** ou connectez-vous comme enseignant pour le faire dans ses affectations.
 7. Saisissez les notes, soumettez la fiche, puis connectez-vous avec **direction** pour valider ou refuser.
-8. Consultez les classements, rapports et bulletins ; les données de démonstration préchargées illustrent aussi des résultats incomplets.
+8. Consultez les moyennes par élève et par classe, les classements, rapports et bulletins PDF téléchargeables ; les données de démonstration préchargées illustrent aussi des résultats incomplets.
 
 Le jeu de démonstration comprend 24 élèves, 18 classes francophones et anglophones, quatre matières et des évaluations fictives. Les classes proposées sont un catalogue de départ modifiable ; l’administrateur peut aussi créer une classe à la demande.
 
