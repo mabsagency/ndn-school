@@ -9,6 +9,7 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import URL, make_url
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
 db = SQLAlchemy()
@@ -86,6 +87,16 @@ def create_app(test_config=None):
         if not request.path.startswith("/static/") and request.path != "/service-worker.js":
             response.headers["Cache-Control"] = "private, no-store"
         return response
+
+    @app.get("/health")
+    def health():
+        try:
+            db.session.execute(db.select(1))
+        except SQLAlchemyError:
+            db.session.rollback()
+            app.logger.exception("Health check failed because the database is unavailable.")
+            return {"status": "unavailable"}, 503
+        return "", 204
 
     @app.get("/service-worker.js")
     def service_worker():

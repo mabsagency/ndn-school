@@ -7,6 +7,48 @@ const isStandalone = window.matchMedia("(display-mode: standalone)").matches
 
 const appShell = document.querySelector(".app-shell");
 const offlineIndicator = document.querySelector("[data-offline-indicator]");
+const loginForm = document.getElementById("loginForm");
+
+if (appShell || loginForm) {
+  let redirectingOffline = false;
+  let healthCheckInProgress = false;
+  const goOffline = () => {
+    if (redirectingOffline) return;
+    redirectingOffline = true;
+    window.location.replace("/static/offline.html");
+  };
+  const checkServer = async () => {
+    if (healthCheckInProgress || redirectingOffline) return;
+    if (!navigator.onLine) {
+      goOffline();
+      return;
+    }
+    healthCheckInProgress = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    try {
+      const response = await fetch("/health", {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      if (!response.ok) goOffline();
+    } catch {
+      goOffline();
+    } finally {
+      window.clearTimeout(timeout);
+      healthCheckInProgress = false;
+    }
+  };
+
+  window.addEventListener("offline", goOffline);
+  window.addEventListener("online", checkServer);
+  window.addEventListener("load", checkServer, { once: true });
+  window.setInterval(() => {
+    if (document.visibilityState === "visible") checkServer();
+  }, 15000);
+}
+
 if (appShell && offlineIndicator && window.NdnOfflineStore) {
   window.NdnOfflineStore.get(appShell.dataset.offlineUser).then((record) => {
     offlineIndicator.textContent = record
@@ -29,7 +71,6 @@ if ("serviceWorker" in navigator && window.isSecureContext) {
   });
 }
 
-const loginForm = document.getElementById("loginForm");
 if (loginForm) {
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();

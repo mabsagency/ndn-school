@@ -119,6 +119,10 @@ def test_pwa_resources_are_available_without_authentication(client):
     assert worker.headers["Service-Worker-Allowed"] == "/"
     assert worker.headers["Cache-Control"] == "no-cache"
 
+    health = client.get("/health")
+    assert health.status_code == 204
+    assert health.headers["Cache-Control"] == "private, no-store"
+
     offline = client.get("/static/offline.html")
     assert offline.status_code == 200
     assert b"chiffr" in offline.data
@@ -126,6 +130,25 @@ def test_pwa_resources_are_available_without_authentication(client):
     worker_script = worker.get_data(as_text=True)
     assert '"/static/js/offline-store.js"' in worker_script
     assert 'url.pathname.startsWith("/api/")' in worker_script
+    assert "ndn-static-v7" in worker_script
+
+    offline_script = client.get("/static/js/offline.js")
+    assert offline_script.status_code == 200
+    assert "checkServerAndReturn" in offline_script.get_data(as_text=True)
+
+
+def test_health_check_reports_database_unavailability(client, app, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    with app.app_context():
+        def fail_query(*args, **kwargs):
+            raise OperationalError("SELECT 1", {}, Exception("database unavailable"))
+
+        monkeypatch.setattr(db.session, "execute", fail_query)
+        response = client.get("/health")
+
+    assert response.status_code == 503
+    assert response.json == {"status": "unavailable"}
 
 
 def test_database_url_normalization_supports_supabase_and_relative_sqlite(tmp_path):

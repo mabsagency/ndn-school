@@ -1,3 +1,36 @@
+let reconnecting = false;
+let healthCheckInProgress = false;
+const checkServerAndReturn = async () => {
+  if (reconnecting || healthCheckInProgress || !navigator.onLine) return;
+  healthCheckInProgress = true;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch("/health", {
+      cache: "no-store",
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
+    if (response.status === 204) {
+      reconnecting = true;
+      const message = document.getElementById("offlineMessage");
+      if (message) message.textContent = "Connexion rétablie. Ouverture de l’application…";
+      window.location.replace("/");
+    }
+  } catch {
+    // The offline page remains active while the server cannot be reached.
+  } finally {
+    window.clearTimeout(timeout);
+    healthCheckInProgress = false;
+  }
+};
+
+window.addEventListener("online", checkServerAndReturn);
+window.addEventListener("load", checkServerAndReturn, { once: true });
+window.setInterval(() => {
+  if (document.visibilityState === "visible") checkServerAndReturn();
+}, 15000);
+
 const unlockForm = document.getElementById("offlineUnlock");
 if (unlockForm) {
   const message = document.getElementById("offlineMessage");
